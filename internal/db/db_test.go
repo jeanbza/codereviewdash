@@ -86,6 +86,92 @@ func TestNextReindexAllReposWork_Basic(t *testing.T) {
 	}
 }
 
+func TestNextReindexAllReposWork_QuickSuccession(t *testing.T) {
+	// The first call should return work, second should not, since asking for
+	// the first time should return & update it.
+
+	sutDB, sqlDB := setupDB(t)
+	resetTables(t, sqlDB)
+	setAllReposIndexing(t, sqlDB, time.Now().Add(-24*time.Hour), time.Now().Add(-24*time.Hour))
+
+	// Take work for the first time: should return true.
+	shouldReindex, err := sutDB.NextReindexAllReposWork(t.Context(), 5*time.Minute, 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := shouldReindex, true; got != want {
+		t.Errorf("expected shouldReindex=%v, got %v", want, got)
+	}
+
+	// Try to take work the second time: should return false.
+	shouldReindex, err = sutDB.NextReindexAllReposWork(t.Context(), 5*time.Minute, 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := shouldReindex, false; got != want {
+		t.Errorf("expected shouldReindex=%v, got %v", want, got)
+	}
+}
+
+func TestNextReindexRepo_Basic(t *testing.T) {
+	sutDB, sqlDB := setupDB(t)
+
+	for _, tc := range reindexWorkerTestCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resetTables(t, sqlDB)
+			setSingleRepoIndexing(t, sqlDB, "foo/bar", "master", tc.lastIndexingBegan, tc.lastIndexingFinished)
+
+			_, gotRepoToReindex, gotDefaultBranchName, gotWork, err := sutDB.NextReindexRepoWork(t.Context(), tc.reindexTTL, tc.reindexPeriod)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tc.expectReindex {
+				if !gotWork {
+					t.Fatalf("NextReindexRepoTagsWork: expected work but got none")
+				}
+				if gotRepoToReindex != "foo/bar" {
+					t.Errorf("NextReindexRepoTagsWork: expected foo/bar but got %s", gotRepoToReindex)
+				}
+				if gotDefaultBranchName != "master" {
+					t.Errorf("NextReindexRepoTagsWork: expected master but got %s", gotDefaultBranchName)
+				}
+			} else {
+				if gotWork {
+					t.Errorf("NextReindexRepoTagsWork: expected no work, but got some: %s", gotRepoToReindex)
+				}
+			}
+		})
+	}
+}
+
+func TestNextReindexRepoWork_QuickSuccession(t *testing.T) {
+	// The first call should return work, second should not, since asking for
+	// the first time should return & update it.
+
+	sutDB, sqlDB := setupDB(t)
+	resetTables(t, sqlDB)
+	setSingleRepoIndexing(t, sqlDB, "foo/bar", "master", time.Now().Add(-24*time.Hour), time.Now().Add(-24*time.Hour))
+
+	// Take work for the first time: should return true.
+	_, _, _, shouldReindex, err := sutDB.NextReindexRepoWork(t.Context(), 5*time.Minute, 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := shouldReindex, true; got != want {
+		t.Errorf("expected shouldReindex=%v, got %v", want, got)
+	}
+
+	// Try to take work the second time: should return false.
+	_, _, _, shouldReindex, err = sutDB.NextReindexRepoWork(t.Context(), 5*time.Minute, 24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := shouldReindex, false; got != want {
+		t.Errorf("expected shouldReindex=%v, got %v", want, got)
+	}
+}
+
 func setupDB(t *testing.T) (*db.DB, *sql.DB) {
 	// Check if required environment variables are set
 	if os.Getenv("POSTGRES_USERNAME") == "" {

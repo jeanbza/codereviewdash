@@ -83,3 +83,16 @@ SET indexing_began = TIMESTAMP WITH TIME ZONE '%s', indexing_finished = TIMESTAM
 		t.Fatalf("setAllReposIndexing: error updating repo_indexing table:\nquery: %s\nerror: %v", query, err)
 	}
 }
+
+func setSingleRepoIndexing(t *testing.T, db *sql.DB, orgRepoName, defaultBranchName string, indexingBegan, indexingFinished time.Time) {
+	t.Helper()
+
+	query := fmt.Sprintf(`
+INSERT INTO repos(repo_id, org_repo_name, default_branch_name, indexing_began, indexing_finished)
+VALUES(123, '%s', '%s', TIMESTAMP WITH TIME ZONE '%s', TIMESTAMP WITH TIME ZONE '%s')`,
+		orgRepoName, defaultBranchName, indexingBegan.Format(time.RFC3339), indexingFinished.Format(time.RFC3339))
+
+	if _, err := db.ExecContext(t.Context(), query); err != nil {
+		t.Fatalf("setSingleRepoIndexing: error inserting into repos table:\nquery: %s\nerror: %v", query, err)
+	}
+}
