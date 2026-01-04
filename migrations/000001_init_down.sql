@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS pr_reviewers;
+DROP TABLE IF EXISTS repo_prs;
+DROP TABLE IF EXISTS repo_commits;
+DROP TABLE IF EXISTS repos;
+DROP TABLE IF EXISTS repo_indexing;
+DROP TABLE IF EXISTS team_members;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS teams_reindexing;
